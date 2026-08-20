@@ -1,0 +1,25 @@
+services:
+  game:
+    build: .
+    container_name: docker-2048-game
+    ports:
+      - "8080:80"
+    volumes:
+      - game-data:/usr/share/nginx/html
+    networks:
+      - game-network
+
+  nginx:
+    image: nginx:alpine
+    container_name: docker-2048-nginx
+    ports:
+      - "8081:80"
+    networks:
+      - game-network
+
+volumes:
+  game-data:
+
+networks:
+  game-network:
+    driver: bridge
