@@ -1,0 +1,9 @@
+services:
+  game:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: 2048-game
+    ports:
+      - "8080:80"
+    restart: unless-stopped
