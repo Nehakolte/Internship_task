@@ -8,7 +8,7 @@ const server = http.createServer((req, res) => {
     <html>
       <head><title>Docker Demo App</title></head>
       <body style="font-family: sans-serif; text-align:center; margin-top:80px;">
-        <h1>🐳 Hello from inside a Docker container!</h1>
+        <h1> Hello from inside a Docker container!</h1>
         <p>This simple Node.js app is running in a container built from a custom Dockerfile.</p>
       </body>
     </html>
