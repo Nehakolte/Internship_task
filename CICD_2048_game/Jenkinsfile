@@ -1,0 +1,112 @@
+pipeline {
+    agent any
+
+    // ---- Environment variables (Task requirement: "Configure environment variables") ----
+    environment {
+        APP_NAME        = "2048-jenkins-demo"
+        IMAGE_TAG       = "${env.BUILD_NUMBER}"
+        DOCKERHUB_USER  = "your-dockerhub-username"          // <-- change me
+        IMAGE_NAME      = "${DOCKERHUB_USER}/${APP_NAME}"
+        DOCKERHUB_CREDS = credentials('dockerhub-creds')      // Jenkins credential ID (username+password/token)
+        APP_ENV         = "production"
+    }
+
+    options {
+        timestamps()
+        buildDiscarder(logRotator(numToKeepStr: '10'))
+    }
+
+    stages {
+
+        // ---------------- 1. CHECKOUT ----------------
+        stage('Checkout') {
+            steps {
+                echo "Checking out source from GitHub..."
+                checkout scm
+                // If configuring manually instead of using an SCM-linked job:
+                // git branch: 'main', url: 'https://github.com/<your-username>/2048-jenkins-demo.git'
+            }
+        }
+
+        // ---------------- 2. BUILD ----------------
+        stage('Build') {
+            steps {
+                echo "Installing dependencies and running build step..."
+                sh '''
+                    node --version
+                    npm --version
+                    npm run build
+                '''
+            }
+        }
+
+        // ---------------- 3. TEST ----------------
+        stage('Test') {
+            steps {
+                echo "Running automated unit tests for game logic..."
+                sh 'npm test'
+            }
+        }
+
+        // ---------------- 4. PACKAGE ----------------
+        stage('Package') {
+            steps {
+                echo "Packaging static site into dist/ ..."
+                sh 'npm run package'
+                archiveArtifacts artifacts: 'dist/**', fingerprint: true
+            }
+        }
+
+        // ---------------- 5. DOCKER BUILD ----------------
+        stage('Docker Build') {
+            steps {
+                echo "Building Docker image ${IMAGE_NAME}:${IMAGE_TAG} ..."
+                sh "docker build -t ${IMAGE_NAME}:${IMAGE_TAG} -t ${IMAGE_NAME}:latest ."
+            }
+        }
+
+        // ---------------- 6. BASIC AUTOMATED CONTAINER TEST ----------------
+        stage('Container Smoke Test') {
+            steps {
+                echo "Running the built image and checking it serves HTTP 200..."
+                sh '''
+                    docker run -d --rm --name ${APP_NAME}-smoke -p 8081:80 ${IMAGE_NAME}:${IMAGE_TAG}
+                    sleep 3
+                    STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8081/)
+                    echo "HTTP status: $STATUS"
+                    docker stop ${APP_NAME}-smoke
+                    if [ "$STATUS" != "200" ]; then
+                        echo "Smoke test FAILED"
+                        exit 1
+                    fi
+                    echo "Smoke test PASSED"
+                '''
+            }
+        }
+
+        // ---------------- 7. PUSH TO REGISTRY ----------------
+        stage('Push to Registry') {
+            steps {
+                echo "Logging in and pushing image to Docker Hub..."
+                sh '''
+                    echo "$DOCKERHUB_CREDS_PSW" | docker login -u "$DOCKERHUB_CREDS_USR" --password-stdin
+                    docker push ${IMAGE_NAME}:${IMAGE_TAG}
+                    docker push ${IMAGE_NAME}:latest
+                '''
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "Pipeline completed successfully. Image: ${IMAGE_NAME}:${IMAGE_TAG}"
+        }
+        failure {
+            echo "Pipeline failed. Check the stage logs above."
+        }
+        always {
+            sh 'docker logout || true'
+            sh "docker rmi ${IMAGE_NAME}:${IMAGE_TAG} || true"
+        }
+    }
+}

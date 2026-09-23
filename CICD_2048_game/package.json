@@ -1,0 +1,12 @@
+{
+  "name": "2048-jenkins-demo",
+  "version": "1.0.0",
+  "description": "2048 game packaged as a static site, built/tested/deployed via Jenkins CI/CD",
+  "scripts": {
+    "build": "node -e \"console.log('Build step: validating src/ files exist'); const fs=require('fs'); ['src/index.html','src/style.css','src/script.js'].forEach(f=>{ if(!fs.existsSync(f)) throw new Error(f+' missing'); }); console.log('Build OK');\"",
+    "test": "node tests/game.test.js",
+    "package": "node -e \"const fs=require('fs'); fs.mkdirSync('dist',{recursive:true}); fs.copyFileSync('src/index.html','dist/index.html'); fs.copyFileSync('src/style.css','dist/style.css'); fs.copyFileSync('src/script.js','dist/script.js'); console.log('Packaged into dist/');\""
+  },
+  "author": "",
+  "license": "MIT"
+}

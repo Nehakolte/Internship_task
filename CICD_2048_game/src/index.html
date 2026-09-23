@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2048 - Jenkins CI/CD Demo</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="wrapper">
+    <header>
+      <h1>2048</h1>
+      <div class="score-box">
+        <div class="label">SCORE</div>
+        <div id="score">0</div>
+      </div>
+    </header>
+    <div class="info">
+      <p>Join the numbers and get to the <strong>2048</strong> tile!</p>
+      <button id="new-game-btn">New Game</button>
+    </div>
+    <div id="game-board" class="board"></div>
+    <div id="message" class="message hidden"></div>
+    <footer>
+      <p>Built for Jenkins CI/CD practical exercise</p>
+    </footer>
+  </div>
+  <script src="script.js"></script>
+</body>
+</html>
