@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        APP_NAME = '2048-game'
+        APP_NAME = '2048-game-app'
         DOCKER_IMAGE = 'neha401/cicd-2048-game'
         IMAGE_TAG = "${BUILD_NUMBER}"
     }
@@ -33,27 +33,32 @@ pipeline {
 
         stage('Package') {
             steps {
-                echo 'Packaging application into Docker image...'
+                echo 'Building Docker image...'
+
                 sh 'docker build -t ${DOCKER_IMAGE}:${IMAGE_TAG} .'
+
                 sh 'docker tag ${DOCKER_IMAGE}:${IMAGE_TAG} ${DOCKER_IMAGE}:latest'
             }
         }
 
         stage('Docker Push') {
             steps {
-                echo 'Pushing Docker image to Docker Hub...'
+                echo 'Logging in and pushing image to Docker Hub...'
 
                 withCredentials([
                     usernamePassword(
                         credentialsId: 'dockerhub-credentials',
-                        usernameVariable: 'neha401',
-                        passwordVariable: 'Nehak4901'
+                        usernameVariable: 'DOCKER_USERNAME',
+                        passwordVariable: 'DOCKER_PASSWORD'
                     )
                 ]) {
                     sh '''
-                        echo "$DOCKER_PASSWORD" | docker login -u "neha401" --password-stdin
+                        echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+
                         docker push ${DOCKER_IMAGE}:${IMAGE_TAG}
+
                         docker push ${DOCKER_IMAGE}:latest
+
                         docker logout
                     '''
                 }
