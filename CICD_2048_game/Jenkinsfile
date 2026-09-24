@@ -26,8 +26,11 @@ pipeline {
         stage('Test') {
             steps {
                 echo 'Running automated tests...'
-                sh 'chmod +x test.sh'
-                sh './test.sh'
+                sh '''
+                    cd CICD_2048_game
+                    chmod +x test.sh
+                    ./test.sh
+                '''
             }
         }
 
