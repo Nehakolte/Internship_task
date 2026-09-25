@@ -19,7 +19,9 @@ pipeline {
         stage('Build') {
             steps {
                 echo 'Building 2048 application...'
-                sh 'echo "Build stage completed"'
+                sh '''
+                    echo "Build stage completed"
+                '''
             }
         }
 
@@ -38,40 +40,51 @@ pipeline {
             steps {
                 echo 'Building Docker image...'
 
-                sh 'docker build -t ${DOCKER_IMAGE}:${IMAGE_TAG} .'
-
-                sh 'docker tag ${DOCKER_IMAGE}:${IMAGE_TAG} ${DOCKER_IMAGE}:latest'
+                sh '''
+                    docker build -t ${DOCKER_IMAGE}:${IMAGE_TAG} .
+                    docker tag ${DOCKER_IMAGE}:${IMAGE_TAG} ${DOCKER_IMAGE}:latest
+                '''
             }
         }
 
-       stage('Docker Push') {
-    steps {
-        withCredentials([
-            usernamePassword(
-                credentialsId: 'dockerhub-credentials',
-                usernameVariable: 'DOCKER_USER',
-                passwordVariable: 'DOCKER_PASS'
-            )
-        ]) {
-            sh '''
-                echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
-                docker push neha401/cicd-2048-game:${BUILD_NUMBER}
-            '''
+        stage('Docker Push') {
+            steps {
+                echo 'Logging in to Docker Hub and pushing image...'
+
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: 'dockerhub-credentials',
+                        usernameVariable: 'DOCKER_USER',
+                        passwordVariable: 'DOCKER_PASS'
+                    )
+                ]) {
+                    sh '''
+                        echo "$DOCKER_PASS" | docker login \
+                            --username "$DOCKER_USER" \
+                            --password-stdin
+
+                        docker push ${DOCKER_IMAGE}:${IMAGE_TAG}
+                        docker push ${DOCKER_IMAGE}:latest
+
+                        docker logout
+                    '''
+                }
+            }
         }
-    }
-}
     }
 
     post {
         success {
-            echo 'Pipeline completed successfully!'
+            echo "Pipeline completed successfully!"
+            echo "Docker Image: ${DOCKER_IMAGE}:${IMAGE_TAG}"
         }
 
         failure {
-            echo 'Pipeline failed. Check the console output.'
+            echo "Pipeline failed. Check the console output."
         }
 
         always {
+            echo "Docker images available on Jenkins agent:"
             sh 'docker images || true'
         }
     }
