@@ -1,9 +1,7 @@
-
 pipeline {
     agent any
 
     environment {
-        APP_NAME = '2048-game-app'
         DOCKER_IMAGE = 'neha401/cicd-2048-game'
         IMAGE_TAG = "${BUILD_NUMBER}"
     }
@@ -22,6 +20,7 @@ pipeline {
                 echo 'Building 2048 application...'
 
                 sh '''
+                    cd CICD_2048_game
                     echo "Build stage completed"
                 '''
             }
@@ -44,8 +43,17 @@ pipeline {
                 echo 'Building Docker image...'
 
                 sh '''
-                    docker build -t ${DOCKER_IMAGE}:${IMAGE_TAG} .
-                    docker tag ${DOCKER_IMAGE}:${IMAGE_TAG} ${DOCKER_IMAGE}:latest
+                    cd CICD_2048_game
+
+                    docker build \
+                        -t ${DOCKER_IMAGE}:${IMAGE_TAG} .
+
+                    docker tag \
+                        ${DOCKER_IMAGE}:${IMAGE_TAG} \
+                        ${DOCKER_IMAGE}:latest
+
+                    echo "Docker image created:"
+                    docker images ${DOCKER_IMAGE}
                 '''
             }
         }
@@ -64,11 +72,13 @@ pipeline {
 
                     sh '''
                         echo "$DOCKER_PASS" | docker login \
-                            -u "$DOCKER_USER" \
+                            --username "$DOCKER_USER" \
                             --password-stdin
 
+                        echo "Pushing image: ${DOCKER_IMAGE}:${IMAGE_TAG}"
                         docker push ${DOCKER_IMAGE}:${IMAGE_TAG}
 
+                        echo "Pushing latest image..."
                         docker push ${DOCKER_IMAGE}:latest
 
                         docker logout
@@ -94,7 +104,7 @@ pipeline {
             echo 'Docker images available on Jenkins agent:'
 
             sh '''
-                docker images || true
+                docker images ${DOCKER_IMAGE} || true
             '''
         }
     }
