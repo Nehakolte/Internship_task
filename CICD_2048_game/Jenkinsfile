@@ -13,35 +13,19 @@ pipeline {
             steps {
                 echo 'Checking out source code from GitHub...'
                 checkout scm
-
-                sh '''
-                    echo "Current directory:"
-                    pwd
-
-                    echo "Repository files:"
-                    ls -la
-
-                    echo "CICD_2048_game files:"
-                    ls -la CICD_2048_game || true
-                '''
             }
         }
 
         stage('Build') {
             steps {
                 echo 'Building 2048 application...'
-
-                sh '''
-                    cd CICD_2048_game
-                    echo "Build stage completed"
-                '''
+                sh 'echo "Build stage completed"'
             }
         }
 
         stage('Test') {
             steps {
                 echo 'Running automated tests...'
-
                 sh '''
                     cd CICD_2048_game
                     chmod +x test.sh
@@ -54,51 +38,33 @@ pipeline {
             steps {
                 echo 'Building Docker image...'
 
-                sh '''
-                    cd CICD_2048_game
+                sh 'docker build -t ${DOCKER_IMAGE}:${IMAGE_TAG} .'
 
-                    docker build \
-                        -t ${DOCKER_IMAGE}:${IMAGE_TAG} \
-                        -t ${DOCKER_IMAGE}:latest \
-                        .
-                '''
+                sh 'docker tag ${DOCKER_IMAGE}:${IMAGE_TAG} ${DOCKER_IMAGE}:latest'
             }
         }
 
-        stage('Docker Push') {
-            steps {
-                echo 'Logging in and pushing image to Docker Hub...'
-
-                withCredentials([
-                    usernamePassword(
-                        credentialsId: 'dockerhub-credentials',
-                        usernameVariable: 'DOCKER_USERNAME',
-                        passwordVariable: 'DOCKER_PASSWORD'
-                    )
-                ]) {
-
-                    sh '''
-                        echo "$DOCKER_PASSWORD" | docker login \
-                            -u "$DOCKER_USERNAME" \
-                            --password-stdin
-
-                        docker push ${DOCKER_IMAGE}:${IMAGE_TAG}
-                        docker push ${DOCKER_IMAGE}:latest
-
-                        docker logout
-                    '''
-                }
-            }
+       stage('Docker Push') {
+    steps {
+        withCredentials([
+            usernamePassword(
+                credentialsId: 'dockerhub-credentials',
+                usernameVariable: 'DOCKER_USER',
+                passwordVariable: 'DOCKER_PASS'
+            )
+        ]) {
+            sh '''
+                echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+                docker push neha401/cicd-2048-game:${BUILD_NUMBER}
+            '''
         }
+    }
+}
     }
 
     post {
         success {
-            echo '========================================'
-            echo 'PIPELINE COMPLETED SUCCESSFULLY!'
-            echo "Docker Image: ${DOCKER_IMAGE}:${IMAGE_TAG}"
-            echo "Docker Image: ${DOCKER_IMAGE}:latest"
-            echo '========================================'
+            echo 'Pipeline completed successfully!'
         }
 
         failure {
