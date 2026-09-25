@@ -1,3 +1,4 @@
+```groovy
 pipeline {
     agent any
 
@@ -19,6 +20,7 @@ pipeline {
         stage('Build') {
             steps {
                 echo 'Building 2048 application...'
+
                 sh '''
                     echo "Build stage completed"
                 '''
@@ -28,6 +30,7 @@ pipeline {
         stage('Test') {
             steps {
                 echo 'Running automated tests...'
+
                 sh '''
                     cd CICD_2048_game
                     chmod +x test.sh
@@ -49,7 +52,7 @@ pipeline {
 
         stage('Docker Push') {
             steps {
-                echo 'Logging in to Docker Hub and pushing image...'
+                echo 'Logging in to Docker Hub...'
 
                 withCredentials([
                     usernamePassword(
@@ -58,12 +61,14 @@ pipeline {
                         passwordVariable: 'DOCKER_PASS'
                     )
                 ]) {
+
                     sh '''
                         echo "$DOCKER_PASS" | docker login \
-                            --username "$DOCKER_USER" \
+                            -u "$DOCKER_USER" \
                             --password-stdin
 
                         docker push ${DOCKER_IMAGE}:${IMAGE_TAG}
+
                         docker push ${DOCKER_IMAGE}:latest
 
                         docker logout
@@ -74,18 +79,24 @@ pipeline {
     }
 
     post {
+
         success {
-            echo "Pipeline completed successfully!"
+            echo 'Pipeline completed successfully!'
             echo "Docker Image: ${DOCKER_IMAGE}:${IMAGE_TAG}"
+            echo "Latest Image: ${DOCKER_IMAGE}:latest"
         }
 
         failure {
-            echo "Pipeline failed. Check the console output."
+            echo 'Pipeline failed. Check the console output.'
         }
 
         always {
-            echo "Docker images available on Jenkins agent:"
-            sh 'docker images || true'
+            echo 'Docker images available on Jenkins agent:'
+
+            sh '''
+                docker images || true
+            '''
         }
     }
 }
+```
