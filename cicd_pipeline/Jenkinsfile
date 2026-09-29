@@ -1,0 +1,82 @@
+Jenkinsfile
+
+Use:
+
+pipeline {
+
+    agent any
+
+    environment {
+        IMAGE_NAME = "neha-cicd-app"
+        IMAGE_TAG = "v${BUILD_NUMBER}"
+        NAMESPACE = "devops-app"
+        DEPLOYMENT = "webapp"
+    }
+
+    stages {
+
+        stage('Checkout') {
+            steps {
+                git branch: 'main',
+                    url: 'https://github.com/Nehakolte/Internship_task.git'
+            }
+        }
+
+        stage('Build') {
+            steps {
+                bat 'echo Building application...'
+                bat 'docker build -t %IMAGE_NAME%:%IMAGE_TAG% .'
+            }
+        }
+
+        stage('Test') {
+            steps {
+                bat 'echo Running application tests...'
+                bat 'docker run --rm %IMAGE_NAME%:%IMAGE_TAG% nginx -t'
+            }
+        }
+
+        stage('Docker Image') {
+            steps {
+                bat 'docker images %IMAGE_NAME%'
+            }
+        }
+
+        stage('Load Image to Minikube') {
+            steps {
+                bat 'minikube image load %IMAGE_NAME%:%IMAGE_TAG%'
+            }
+        }
+
+        stage('Deploy') {
+            steps {
+                bat 'kubectl apply -f k8s/namespace.yaml'
+                bat 'kubectl apply -f k8s/service.yaml'
+                bat 'kubectl set image deployment/%DEPLOYMENT% webapp=%IMAGE_NAME%:%IMAGE_TAG% -n %NAMESPACE%'
+            }
+        }
+
+        stage('Rolling Deployment') {
+            steps {
+                bat 'kubectl rollout status deployment/%DEPLOYMENT% -n %NAMESPACE%'
+            }
+        }
+
+        stage('Verify') {
+            steps {
+                bat 'kubectl get pods -n %NAMESPACE%'
+                bat 'kubectl get deployment -n %NAMESPACE%'
+            }
+        }
+    }
+
+    post {
+        success {
+            echo 'CI/CD Pipeline completed successfully.'
+        }
+
+        failure {
+            echo 'CI/CD Pipeline failed.'
+        }
+    }
+}
