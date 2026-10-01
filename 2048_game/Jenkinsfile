@@ -1,0 +1,145 @@
+pipeline {
+
+    agent any
+
+    environment {
+        IMAGE_NAME = "neha123/docker-2048-game"
+        IMAGE_TAG = "${BUILD_NUMBER}"
+        CONTAINER_NAME = "docker-2048-game"
+    }
+
+    stages {
+
+        stage('Checkout') {
+            steps {
+                echo 'Checking out source code from GitHub...'
+                checkout scm
+            }
+        }
+
+        stage('Review Files') {
+            steps {
+                bat '''
+                    echo ===== Project Files =====
+                    dir
+                '''
+            }
+        }
+
+        stage('Validate Docker Compose') {
+            steps {
+                echo 'Validating Docker Compose configuration...'
+
+                bat '''
+                    docker compose config
+                '''
+            }
+        }
+
+        stage('Build Application Image') {
+            steps {
+                echo 'Building Docker image...'
+
+                bat '''
+                    docker build -t %IMAGE_NAME%:%IMAGE_TAG% .
+                    docker tag %IMAGE_NAME%:%IMAGE_TAG% %IMAGE_NAME%:latest
+                '''
+            }
+        }
+
+        stage('Security Scan') {
+            steps {
+                echo 'Scanning Docker image for vulnerabilities...'
+
+                bat '''
+                    trivy image %IMAGE_NAME%:%IMAGE_TAG%
+                '''
+            }
+        }
+
+        stage('Test Docker Container') {
+            steps {
+                echo 'Starting application container...'
+
+                bat '''
+                    docker rm -f %CONTAINER_NAME% 2>NUL || exit 0
+                    docker run -d --name %CONTAINER_NAME% -p 8080:80 %IMAGE_NAME%:%IMAGE_TAG%
+                '''
+
+                timeout(time: 2, unit: 'MINUTES') {
+                    bat '''
+                        powershell -Command "Start-Sleep -Seconds 5"
+                    '''
+                }
+
+                bat '''
+                    docker ps
+                '''
+            }
+        }
+
+        stage('Application Verification') {
+            steps {
+                echo 'Checking application container...'
+
+                bat '''
+                    docker inspect %CONTAINER_NAME%
+                    docker logs %CONTAINER_NAME%
+                '''
+            }
+        }
+
+        stage('Push Docker Image') {
+            steps {
+                echo 'Pushing Docker image to Docker Hub...'
+
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: 'dockerhub-credentials',
+                        usernameVariable: 'DOCKER_USERNAME',
+                        passwordVariable: 'DOCKER_PASSWORD'
+                    )
+                ]) {
+
+                    bat '''
+                        echo %DOCKER_PASSWORD% | docker login -u %DOCKER_USERNAME% --password-stdin
+                        docker push %IMAGE_NAME%:%IMAGE_TAG%
+                        docker push %IMAGE_NAME%:latest
+                        docker logout
+                    '''
+                }
+            }
+        }
+
+        stage('Cleanup') {
+            steps {
+                echo 'Cleaning up test container...'
+
+                bat '''
+                    docker rm -f %CONTAINER_NAME% 2>NUL || exit 0
+                '''
+            }
+        }
+    }
+
+    post {
+
+        success {
+            echo '========================================'
+            echo 'CI/CD PIPELINE COMPLETED SUCCESSFULLY'
+            echo '========================================'
+            echo "Docker Image: ${IMAGE_NAME}:${IMAGE_TAG}"
+        }
+
+        failure {
+            echo '========================================'
+            echo 'PIPELINE FAILED'
+            echo 'Check the failed stage and Jenkins console output.'
+            echo '========================================'
+        }
+
+        always {
+            echo 'Pipeline execution completed.'
+        }
+    }
+}
